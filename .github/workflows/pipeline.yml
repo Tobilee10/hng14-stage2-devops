@@ -1,0 +1,85 @@
+name: HNG Stage 2 CI/CD
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  # 1. QUALITY GATE: Ensure the code is clean
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          
+      - name: Lint Code
+        run: |
+          pip install flake8
+          # Fails if there are syntax errors or bad formatting
+          flake8 api/ worker/
+
+  # 2. UNIT TESTS: Test logic in isolation
+  test:
+    needs: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Run API Tests
+        run: |
+          cd api
+          pip install -r requirements.txt pytest
+          # Ensures endpoints return expected responses
+          pytest
+
+  # 3. BUILD & SECURITY: Package and scan images
+  build-and-scan:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Build Slim Images
+        run: |
+          docker build -t api-prod ./api
+          docker build -t worker-prod ./worker
+          docker build -t frontend-prod ./frontend
+          
+      - name: Security Scan (Trivy)
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'api-prod'
+          severity: 'CRITICAL,HIGH'
+          exit-code: '1' # Fails the pipeline if vulnerabilities are found
+
+  # 4. INTEGRATION: Verify the full system connection
+  integration:
+    needs: build-and-scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Run Stack with Docker Compose
+        env:
+          REDIS_PASSWORD: ${{ secrets.REDIS_PASSWORD }}
+          REDIS_HOST: redis
+        run: docker-compose up -d
+        
+      - name: Verification Check
+        run: |
+          echo "Waiting for services to stabilize..."
+          sleep 15
+          # Verify the API can ping Redis
+          curl -f http://localhost:8000/health || exit 1
+          # Verify the Frontend is up
+          curl -f http://localhost:3000 || exit 1
+          
+      - name: Cleanup
+        if: always()
+        run: docker-compose down
