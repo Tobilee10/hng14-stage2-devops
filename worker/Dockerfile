@@ -24,7 +24,7 @@ USER workeruser
 ENV PATH=/home/workeruser/.local/bin:$PATH
 
 # Healthcheck: Verify the python process is running
-# HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
-#     CMD pgrep python || exit 1
+HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
+    CMD pgrep python || exit 1
 
 CMD ["python", "worker.py"]

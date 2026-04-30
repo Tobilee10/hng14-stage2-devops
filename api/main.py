@@ -18,11 +18,11 @@ r = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, password=REDIS_PASS, decode_re
 
 @app.get("/health")
 def health_check():
-    # try:
-    #     r.ping()
+    try:
+        r.ping()
         return {"status": "healthy"}
-    # except Exception:
-    #     return {"status": "unhealthy"}, 500
+    except Exception:
+        return {"status": "unhealthy"}, 500
     
 @app.post("/jobs")
 def create_job():
