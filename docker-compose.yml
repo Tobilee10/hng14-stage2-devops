@@ -35,6 +35,9 @@ services:
       redis:
         condition: service_healthy
     deploy:
+      update_conf:
+          parallelism: 2
+          order: start-first
       resources:
         limits:
           cpus: '0.50'

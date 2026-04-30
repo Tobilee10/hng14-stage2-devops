@@ -20,3 +20,4 @@ Component  |File        |Issue   |Fix
 |Security|Dockerfiles|Services were running as the default root user.|Implemented non-root users (appuser, workeruser, node) for all runtimes.|
 |Reliability|api/main.py|No mechanism to check if Redis is ready before processing jobs.|Added a /health endpoint that performs a r.ping() to verify connectivity.|
 |Logic|worker/worker.py|Queue name mismatch between API and Worker.|Standardized the Redis list name to job_queue across all services.|
+|Missing Environment Template||The repository lacked a template for required environment variables, causing deployment failures for other contributors|Created a .env.example file in the root directory containing all necessarry keys, withot sensitive values, as required by the project specification.|
