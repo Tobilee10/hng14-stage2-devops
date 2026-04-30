@@ -1,0 +1,81 @@
+
+
+services:
+  # 1. Redis: Internal broker (not exposed to host)
+  redis:
+    image: redis
+    container_name: redis-container
+    ports:
+      - "6380:6379"
+    environment:
+      - REDIS_ARGS=--requirepass ${REDIS_PASSWORD}
+    networks:
+      - hng_internal
+    deploy:
+      resources:
+        limits:
+          cpus: '0.20'
+          memory: 128M
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # 2. API: Backend logic
+  api:
+    build: ./api
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+    networks:
+      - hng_internal
+    depends_on:
+      redis:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 256M
+
+  # 3. Worker: Job processor
+  worker:
+    build: ./worker
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+    networks:
+      - hng_internal
+    depends_on:
+      redis:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 256M
+
+  # 4. Frontend: The only service accessible from the host
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - API_URL=http://api:8000
+    networks:
+      - hng_internal
+    depends_on:
+      - api
+        #condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 128M
+
+networks:
+  hng_internal:
+    driver: bridge
